@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 宿主按这个 meta 决定是否给面板加标题栏占位（v2 = 插件自己排版）。 -->
+    <meta name="pi-plugin-chrome" content="v2" />
+    <title>Terminal</title>
+    <link rel="stylesheet" href="./assets/xterm.css" />
+    <link rel="stylesheet" href="./assets/view.css" />
+    <script src="./assets/view.js" defer></script>
+  </head>
+  <body>
+    <!--
+      视图的最小骨架：真正的界面由 view.js 渲染。
+      这里保留语义化的根节点，方便排障时肉眼确认页面是否加载成功。
+    -->
+    <div id="root" data-pi-terminal-root=""></div>
+    <noscript>PI-Terminal needs JavaScript.</noscript>
+  </body>
+</html>

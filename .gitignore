@@ -1,0 +1,38 @@
+# ── 依赖 ─────────────────────────────────────────────────────────────
+node_modules/
+
+# ── 构建产物（由 `npm run build` 生成，不入库）─────────────────────────
+# PI-Desktop 加载的是 main.js / manifest.json / views/，它们都由 src/ 编译而来。
+views/
+main.js
+manifest.json
+
+# 中间 bundle：测试与工具脚本用，随构建重新生成。
+dist-manifest.mjs
+dist-env-test.mjs
+dist-ssh-test.mjs
+dist-known-hosts-test.mjs
+dist-sftp-test.mjs
+dist-sessions-test.mjs
+dist-factory-test.mjs
+dist-secrets-test.mjs
+dist-profiles-test.mjs
+test/.build/
+test/view-behavior.bundle.js
+
+# ── 打包产物（由 `npm run package` 生成）──────────────────────────────
+# .piplug 约 5.8 MiB，可用源码重新打包，不必进仓库。
+dist/
+
+# ── 运行期数据 ───────────────────────────────────────────────────────
+# 插件的审计日志与临时数据目录（smoke/检查脚本会产生）。
+.smoke-data/
+*.log
+
+# ── 编辑器 / 操作系统 ────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
+.DS_Store

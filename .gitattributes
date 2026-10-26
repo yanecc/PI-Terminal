@@ -1,0 +1,51 @@
+# 统一行尾，避免同一文件在不同平台上反复出现「整份改写」的 diff。
+#
+# 为什么需要它：仓库里既有 Windows 上的源码，也有 Linux/macOS 上的脚本，
+# 还包含会被直接执行的 shell 脚本与 pty helper。Git 默认的 `core.autocrlf`
+# 在各机器上不同，结果是「只改了一行，diff 却是整个文件」。
+#
+# 默认：入库一律 LF，检出时由各人的 autocrlf 决定（Windows 上仍是 CRLF）。
+* text=auto eol=lf
+
+# ── 必须是二进制、不能被转换的文件 ───────────────────────────────────
+# 转换它们会直接损坏内容：
+#   · png/ico 等图片；
+#   · .piplug（zip）与其中的 pty helper 可执行文件；
+#   · fonts.vbs / 原生二进制。
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.icns binary
+*.zip  binary
+*.piplug binary
+*.exe  binary
+*.node binary
+
+# ── 明确按文本处理、且坚持 LF 的文件 ─────────────────────────────────
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.js    text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+
+# shell 脚本必须带 LF：CRLF 的 shebang 在 Linux/macOS 上会报
+# `bad interpreter: /bin/sh^M`。
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# Windows 专用的 PowerShell 脚本保留 CRLF，便于在本机直接编辑运行。
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+
+# package-lock.json 由 npm 生成，不参与 diff 统计噪音。
+package-lock.json -diff linguist-generated

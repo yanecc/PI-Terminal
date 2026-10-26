@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" data-base="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Terminal view behavior test</title>
+    <link rel="stylesheet" href="../views/assets/xterm.css" />
+    <link rel="stylesheet" href="../views/assets/view.css" />
+    <style>
+      /* 测试页只要一个能放终端的容器，尺寸固定便于断言 cols/rows。 */
+      #harness { width: 640px; height: 320px; padding: 0; }
+      body { margin: 0; padding: 0; }
+    </style>
+    <script src="./view-behavior.bundle.js"></script>
+  </head>
+  <body>
+    <!-- boot() 需要 #root；给它一个，并让模块的自动启动失败也不影响测试。 -->
+    <div id="root" hidden></div>
+    <!-- 放在视口内：鼠标事件必须真的命中它，否则测的就不是粘贴逻辑。 -->
+    <div id="harness" style="margin:0"></div>
+  </body>
+  <script>
+    // bundle 是 IIFE，把导出挂到 window.__view；这里只做测试页自己的准备。
+    window.__harness = document.getElementById("harness");
+    // 测试页没有宿主桥，boot() 必然失败；这类错误是预期内的。
+    window.addEventListener("error", (event) => {
+      if (/pluginBridge is unavailable|#root is missing/.test(String(event.message))) {
+        event.preventDefault();
+      }
+    });
+  </script>
+</html>

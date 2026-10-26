@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en" data-base="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Terminal e2e (real plugin process)</title>
+    <link rel="stylesheet" href="../views/assets/xterm.css" />
+    <link rel="stylesheet" href="../views/assets/view.css" />
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; }
+    </style>
+    <script>
+      // 真实桥：把 pluginBridge.invoke 转发到 scripts/e2e-view.mjs 里的真实
+      // onPanelInvoke，因此这一页跑的是**生产代码 + 生产后端**，不是桩。
+      window.pluginBridge = {
+        async invoke(channel, payload) {
+          // 页面可以是 http://127.0.0.1:8791（普通静态服务），也可以是
+          // file:// —— 后者更接近生产（宿主面板就是 file://），而且回环流
+          // **拒绝带 Origin 的请求**，所以只有 file:// 才能真的把终端数据拉下来。
+          const base = location.protocol === "file:" ? "http://127.0.0.1:8791" : "";
+          const response = await fetch(`${base}/invoke`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ channel, payload: payload ?? {} }),
+          });
+          const json = await response.json();
+          if (!json.ok) throw new Error(json.error);
+          return json.value;
+        },
+        on() {
+          // 宿主→插件的推送在本测试里不参与；返回退订函数以满足契约。
+          return () => {};
+        },
+      };
+    </script>
+    <script src="../views/assets/view.js" defer></script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,0 +1,921 @@
+/**
+ * 视图样式。
+ *
+ * ── 为什么是两套变量而不是 `var(--bg, …)` ──────────────────────────────────
+ * 插件视图是**独立的沙箱文档**（`WebContentsView` + file://），宿主不会把它的
+ * CSS 变量注入进来。早先写成 `var(--bg, #181818)` 的后果是：回退值永远生效，
+ * 于是无论宿主是明是暗，终端面板都是深色 —— 这正是「面板与宿主不一致」的根因。
+ *
+ * 现在由 theme.ts 把宿主的 `app.getAppearance()` / `appearance:changed` 翻译成
+ * `<html data-base="light|dark">`，这里为两种 base 各定义一整套变量，
+ * 取值照抄宿主的深/浅两套面板色，因此两边看起来是同一个界面的一部分。
+ */
+
+:root,
+:root[data-base="dark"] {
+  --term-bg: #181818;
+  --term-fg: #ffffff;
+  --term-surface: #1f1f1f;
+  --term-border: rgba(255, 255, 255, 0.14);
+  --term-hairline: rgba(255, 255, 255, 0.06);
+  --term-muted: rgba(255, 255, 255, 0.52);
+  --term-faint: rgba(255, 255, 255, 0.38);
+  --term-hover: color-mix(in oklab, #ffffff 6%, transparent);
+  --term-active: color-mix(in oklab, #ffffff 10%, transparent);
+  --term-accent: #ffffff;
+  --term-danger: #ff6764;
+  --term-warn: #e5c07b;
+  --term-info: #7fc4ff;
+  --term-ssh: #b48ef0;
+}
+
+:root[data-base="light"] {
+  --term-bg: #fafafa;
+  --term-fg: #1a1c1f;
+  --term-surface: #ffffff;
+  --term-border: rgba(26, 28, 31, 0.12);
+  --term-hairline: rgba(26, 28, 31, 0.06);
+  --term-muted: #5d5d5d;
+  --term-faint: #9a9a9a;
+  --term-hover: color-mix(in oklab, #1a1c1f 5%, transparent);
+  --term-active: color-mix(in oklab, #1a1c1f 8%, transparent);
+  --term-accent: #1a1c1f;
+  --term-danger: #e02e2a;
+  --term-warn: #8a6d1f;
+  --term-info: #1f5fa8;
+  --term-ssh: #7a4bc4;
+}
+
+:root {
+  --term-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --term-titlebar: var(--pi-plugin-titlebar-height, 0px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  /* 宿主在非嵌入式面板里会留出标题栏；嵌入式视图该值为 0。 */
+  padding-top: var(--term-titlebar);
+  overflow: hidden;
+  background: var(--term-bg);
+  color: var(--term-fg);
+  font: 12px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.term-root {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 头部与标签 ───────────────────────────────────────────────────────── */
+
+.term-header {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--term-border);
+  padding: 6px 8px;
+  background: var(--term-bg);
+}
+
+.term-btn {
+  border: 1px solid var(--term-border);
+  border-radius: 6px;
+  padding: 3px 9px;
+  background: transparent;
+  color: var(--term-muted);
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.term-btn:hover {
+  background: color-mix(in oklab, var(--term-fg) 8%, transparent);
+  color: var(--term-fg);
+}
+
+.term-btn[data-primary="true"] {
+  border-color: transparent;
+  background: var(--term-accent);
+  color: var(--term-bg);
+  font-weight: 600;
+}
+
+.term-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--term-accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
+.term-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.term-tab {
+  display: flex;
+  min-width: 0;
+  max-width: 240px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 6px 3px 8px;
+  background: transparent;
+  color: var(--term-muted);
+  cursor: pointer;
+  font-size: 11.5px;
+  transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.term-tab:hover {
+  background: color-mix(in oklab, var(--term-fg) 7%, transparent);
+  color: var(--term-fg);
+}
+
+.term-tab[data-active="true"] {
+  background: color-mix(in oklab, var(--term-accent) 16%, transparent);
+  color: var(--term-fg);
+  font-weight: 500;
+}
+
+.term-tab[data-status="closed"] .term-tab-title,
+.term-tab[data-status="failed"] .term-tab-title {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.term-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.term-tab[data-unread="true"] .term-tab-title {
+  color: var(--term-accent);
+  font-weight: 700;
+}
+
+.term-tab-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--term-muted);
+}
+
+/* 点的颜色回答三个问题：会话类型、是否活着、输出是否在流动。 */
+.term-tab-dot[data-kind="local"] {
+  background: var(--term-info);
+}
+
+.term-tab-dot[data-kind="ssh"] {
+  background: var(--term-ssh);
+}
+
+.term-tab-dot[data-status="live"] {
+  box-shadow: 0 0 0 2px color-mix(in oklab, currentColor 20%, transparent);
+}
+
+.term-tab-dot[data-status="polling"] {
+  background: var(--term-warn);
+}
+
+.term-tab-dot[data-status="error"] {
+  background: var(--term-danger);
+}
+
+.term-tab-dot[data-status="closed"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--term-muted);
+}
+
+.term-tab-close {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 4px;
+  padding: 0 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 0;
+  /* 图标是 SVG，用 flex 居中：字符的 line-height 在这里不可靠。 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  opacity: 0.6;
+}
+
+.term-tab-close:hover {
+  background: color-mix(in oklab, var(--term-danger) 25%, transparent);
+  opacity: 1;
+}
+
+/* ── 舞台 ─────────────────────────────────────────────────────────────── */
+
+.term-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.term-surface {
+  position: absolute;
+  inset: 0;
+  padding: 6px 4px 4px 8px;
+}
+
+/* xterm 需要显式的 100% 高度，否则 fit 会算出 0 行。 */
+.term-surface .xterm,
+.term-surface .xterm-viewport,
+.term-surface .xterm-screen {
+  height: 100%;
+}
+
+.term-surface .xterm-viewport {
+  background: transparent !important;
+  scrollbar-width: thin;
+}
+
+.term-empty {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 24px;
+  color: var(--term-muted);
+  text-align: center;
+}
+
+.term-empty p {
+  margin: 0;
+  max-width: 60ch;
+}
+
+.term-hint {
+  color: var(--term-muted);
+  font-size: 11.5px;
+}
+
+/*
+ * 最近一次「新建本地」失败的原因。
+ *
+ * 用告警色 + 左边条，让它在一屏灰字里立刻被看到：这类失败（例如缺少 pty
+ * helper）要求用户去重装，低调地混在提示文字里等于没有提示。
+ */
+.term-blocked {
+  max-width: 60ch;
+  padding: 10px 12px;
+  border-left: 3px solid var(--term-warn);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--term-warn) 12%, transparent);
+  color: var(--term-text);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.term-warn {
+  color: var(--term-warn);
+  font-size: 11.5px;
+}
+
+/* ── 状态条 ───────────────────────────────────────────────────────────── */
+
+.term-status {
+  flex: 0 0 auto;
+  min-height: 22px;
+  border-top: 1px solid var(--term-border);
+  padding: 4px 10px;
+  color: var(--term-muted);
+  font-family: var(--term-mono);
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.term-status[data-level="error"] {
+  color: var(--term-danger);
+}
+
+/* ── 覆盖层 ───────────────────────────────────────────────────────────── */
+
+.term-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in oklab, var(--term-bg) 78%, transparent);
+  backdrop-filter: blur(2px);
+  overflow: auto;
+  z-index: 10;
+}
+
+.term-overlay[hidden] {
+  display: none;
+}
+
+.term-panel {
+  position: relative;
+  width: min(620px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  border: 1px solid var(--term-border);
+  border-radius: 10px;
+  padding: 16px 18px 20px;
+  background: var(--term-surface);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.term-panel h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.term-panel h3 {
+  margin: 18px 0 8px;
+  color: var(--term-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.term-panel-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.term-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+  color: var(--term-muted);
+}
+
+.term-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--term-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: color-mix(in oklab, var(--term-fg) 3%, transparent);
+}
+
+.term-profile-info {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.term-profile-info strong {
+  color: var(--term-fg);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.term-profile-info span {
+  overflow: hidden;
+  font-family: var(--term-mono);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.term-profile-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.term-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.term-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--term-muted);
+  font-size: 11.5px;
+}
+
+/*
+ * 必须有这一条：上面的 `display: flex` 会**覆盖** `[hidden]`。
+ * HTML 的 hidden 属性只是用户代理样式里的 `display: none`，任何显式
+ * 的 display 都能盖过它。后果是认证方式切到 password 时，私钥路径和
+ * 私钥口令两行仍然挂在表单里 —— 这正是 0.1.2 报告的「密码认证仍显示
+ * 无关的私钥字段」。`.term-input-wrap` 是 display: block，同理。
+ */
+.term-form [hidden] {
+  display: none !important;
+}
+
+.term-form input,
+.term-form select {
+  border: 1px solid var(--term-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: var(--term-bg);
+  color: var(--term-fg);
+  font: inherit;
+}
+
+.term-profile-test-status {
+  min-height: 1.4em;
+  margin: 6px 0;
+  color: var(--term-muted);
+}
+
+.term-profile-test-status[data-level="error"] {
+  color: var(--term-danger);
+}
+
+.term-form input:focus-visible,
+.term-form select:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--term-accent) 50%, transparent);
+  outline-offset: 0;
+}
+
+.term-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  color: var(--term-fg) !important;
+}
+
+.term-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.term-form-actions button {
+  border: 1px solid var(--term-border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  background: var(--term-accent);
+  color: var(--term-bg);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.term-form-actions button + button {
+  background: transparent;
+  color: var(--term-fg);
+  font-weight: 400;
+}
+
+
+/* ── 输入框内的小眼睛 ─────────────────────────────────────────────────── */
+
+/*
+ * 结构：<span class="term-input-wrap"><input><button class="term-eye"></span>
+ * 小眼睛必须在输入框**内部**靠右：密码管理器与主流桌面终端都是这个位置，
+ * 放到输入框外面会让人以为它属于下一行。用 padding 给按钮留出位置，而不是
+ * 叠一层绝对定位的按钮压住文字 —— 长密码滚到末尾时会被按钮盖住。
+ */
+.term-input-wrap {
+  position: relative;
+  display: block;
+}
+
+.term-input-wrap input {
+  width: 100%;
+  /* 右侧留出按钮宽度 + 间距，光标不会跑到按钮下面。 */
+  padding-right: 34px;
+}
+
+.term-eye {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 5px;
+  padding: 0;
+  background: transparent;
+  color: var(--term-muted);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.term-eye:hover {
+  background: var(--term-hover);
+  color: var(--term-fg);
+}
+
+.term-eye:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--term-accent) 55%, transparent);
+  outline-offset: -1px;
+}
+
+/*
+ * 两态同色。
+ *
+ * 之前「显示中」会把图标提亮到 --term-fg，看上去像另一个按钮，而它其实只是
+ * 同一个开关的另一个状态。现在颜色一律由 --term-muted 出发、由 :hover 提亮，
+ * 状态的差别交给图形本身（睁眼 / 闭眼）表达。
+ */
+
+/* ── 表单里的两列（端口/用户）───────────────────────────────────────── */
+
+.term-form-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 110px) 1fr;
+  gap: 8px;
+}
+
+.term-form-flags {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── 分组折叠 ─────────────────────────────────────────────────────────── */
+
+.term-group + .term-group {
+  margin-top: 6px;
+}
+
+.term-group-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: transparent;
+  color: var(--term-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.term-group-head:hover {
+  background: var(--term-hover);
+}
+
+.term-group-caret {
+  display: inline-block;
+  width: 10px;
+  color: var(--term-faint);
+  transform: rotate(90deg);
+  transition: transform 0.12s ease-out;
+}
+
+.term-group-head[data-collapsed="true"] .term-group-caret {
+  transform: rotate(0deg);
+}
+
+.term-group-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.term-group-count {
+  flex: 0 0 auto;
+  color: var(--term-faint);
+  font-size: 10.5px;
+  font-weight: 400;
+}
+
+.term-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0 2px 16px;
+}
+
+.term-group-body[hidden] {
+  display: none;
+}
+
+/* ── 连接选择器（+ SSH）──────────────────────────────────────────────── */
+
+.term-picker-group + .term-picker-group {
+  margin-top: 10px;
+}
+
+.term-picker-group h3 {
+  margin: 0 0 4px;
+  color: var(--term-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.term-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.term-picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--term-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--term-fg);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.term-picker-item:hover {
+  background: var(--term-hover);
+}
+
+.term-picker-item strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.term-picker-item span {
+  color: var(--term-muted);
+  font-family: var(--term-mono);
+  font-size: 10.5px;
+}
+
+/* 关闭动效的人不留动画。 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* ── 主机面板（面板内，与终端平级）────────────────────────────────────── */
+
+/*
+ * 与 .term-surface 一样铺满 stage（stage 是 position: relative）。
+ * 纵向 flex：顶部工具条固定、列表自己滚动 —— 「添加主机」不会随列表滚走。
+ */
+.term-hosts {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.term-hosts-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--term-hairline);
+  background: var(--term-bg);
+}
+
+.term-hosts-count {
+  color: var(--term-faint);
+  font-size: 11px;
+}
+
+.term-hosts-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px 12px;
+}
+
+/* 固定入口（新建本地 / 新建 SSH / 主机）被选中时的状态。 */
+.term-btn[data-fixed][data-active="true"] {
+  border-color: var(--term-border);
+  background: var(--term-active);
+  color: var(--term-fg);
+}
+
+
+/* ── 设置面板 ─────────────────────────────────────────────────────────── */
+
+/* ── 设置面板 ─────────────────────────────────────────────────────────── */
+
+/*
+ * 骨架复用主机面板（.term-hosts 负责铺满 + 顶部固定条 + 列表滚动）。
+ * 表单按功能分五组，每组一个小标题；控件右对齐成一列，扫读时宽度一致。
+ */
+.term-settings-form {
+  display: flex;
+  max-width: 680px;
+  flex-direction: column;
+  gap: 9px;
+  padding-bottom: 10px;
+}
+
+.term-settings-section {
+  margin: 12px 0 2px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--term-hairline);
+  color: var(--term-faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.term-settings-section:first-child {
+  margin-top: 0;
+}
+
+.term-settings-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 190px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  color: var(--term-fg);
+}
+
+.term-settings-label {
+  color: var(--term-muted);
+  font-size: 12px;
+}
+
+.term-settings-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.term-settings-field input,
+.term-settings-field select {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 7px;
+  padding: 6px 9px;
+  transition: border-color 0.15s ease-out, background 0.15s ease-out;
+}
+
+
+.term-settings-field input:hover,
+.term-settings-field select:hover {
+  border-color: color-mix(in oklab, var(--term-accent) 32%, var(--term-border));
+}
+
+/*
+ * placeholder 是「弱提示」：填过值之后它就不该再抢注意力，所以用最弱的一档
+ * 前景色，并显式 opacity: 1 —— Firefox/Chromium 默认会把占位符再压掉一半，
+ * 在深色背景下就彻底看不见了。
+ */
+.term-settings-field input::placeholder {
+  color: var(--term-faint);
+  opacity: 1;
+}
+
+/* 勾选框：与其它控件同一起点，但不要占满整列。 */
+.term-settings-switch {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border-radius: 4px;
+  accent-color: var(--term-accent);
+  cursor: pointer;
+}
+
+/* 「重置为默认值」：已经在默认值时淡出且不可点，避免按了没反应。 */
+.term-settings-reset {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 5px;
+  padding: 0;
+  background: transparent;
+  color: var(--term-faint);
+  cursor: pointer;
+  transition: background 0.15s ease-out, color 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.term-settings-reset:hover:not(:disabled) {
+  background: var(--term-hover);
+  color: var(--term-fg);
+}
+
+.term-settings-reset:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--term-accent) 55%, transparent);
+  outline-offset: -1px;
+}
+
+.term-settings-reset:disabled {
+  opacity: 0.22;
+  cursor: default;
+}
+
+/* ── 选项卡右键菜单 / 就地重命名 ─────────────────────────────────────── */
+
+/*
+ * 浮层而不是原生菜单：面板是沙箱 webview，没有 Electron 的 Menu API；而这里的
+ * 需求只有两个动作，自己画一个反而更好控（跟随主题、可贴边翻转）。
+ */
+.term-tab-menu {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  min-width: 150px;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
+  border: 1px solid var(--term-border);
+  border-radius: 8px;
+  background: var(--term-surface);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+}
+
+.term-tab-menu-item {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--term-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.term-tab-menu-item:hover {
+  background: var(--term-hover);
+}
+
+.term-tab-menu-item:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--term-accent) 55%, transparent);
+  outline-offset: -1px;
+}
+
+/* 就地重命名：输入框直接长在标签里，宽度跟着标签走。 */
+.term-tab-rename {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 1px solid var(--term-border);
+  border-radius: 5px;
+  padding: 1px 5px;
+  background: var(--term-bg);
+  color: var(--term-fg);
+  font: inherit;
+  font-size: 11.5px;
+}
+
+.term-tab-rename:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--term-accent) 55%, transparent);
+  outline-offset: 0;
+}
